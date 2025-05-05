@@ -4,10 +4,16 @@ import cookieParser from 'cookie-parser';
 const app = express();
 app.use(cookieParser());
 import { Client as nc } from "@notionhq/client";
-
+import { getNotionQueryResponse, getNotionQueryResponseGemini } from './lib/openai';
+import dotenv from 'dotenv';
+dotenv.config();
 const NOTION_ACCESS_TOKEN = process.env.NOTION_ACCESS_TOKEN
 const AUTH_CLIENT_ID = process.env.AUTH_CLIENT_ID
 const AUTH_CLIENT_SECRET = process.env.AUTH_CLIENT_SECRET
+
+console.log("Notion Access Token:", NOTION_ACCESS_TOKEN);
+console.log("Auth Client ID:", AUTH_CLIENT_ID);
+console.log("Auth Client Secret:", AUTH_CLIENT_SECRET);
 const notion = new nc({
   auth: NOTION_ACCESS_TOKEN
 })
@@ -30,11 +36,7 @@ app.get('/authorize', async (req: any, res: any) => {
       {
         headers: {
           'Content-Type': 'application/json',
-          Authorization:
-            'Basic ' +
-            Buffer.from(
-              `${AUTH_CLIENT_ID}:${AUTH_CLIENT_SECRET}`
-            ).toString('base64'),
+          Authorization: `Basic ${Buffer.from(`${AUTH_CLIENT_ID}:${AUTH_CLIENT_SECRET}`).toString('base64')}`,
         },
       }
     );
@@ -105,6 +107,44 @@ app.get('/page/:query', async (req: any, res: any) => {
   console.log("Page content:", pageContent);
   res.json({message: 'Page content retrieved successfully', pageContent });
 });
+
+app.get('block/add', async (req: any, res: any) => {
+  const accessToken = req.cookies.access_token;
+  if (!accessToken) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+  //create a new block with the data in the body
+  const { blockId, type, content } = req.body;
+  if (!blockId || !type || !content) {
+    return res.status(400).json({ message: 'Missing blockId, type or content' });
+  }
+  try {
+
+  } catch (error:any) {
+    return res.status(500).json({
+      message: 'Failed to create block',
+      error: error.message,
+    });
+  }
+})
+
+app.get('/notion/:query', async (req: any, res: any) => {
+  const query = req.params.query;
+  const accessToken = req.cookies.access_token;
+  if (!accessToken) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+  if (!query) {
+    return res.status(400).json({ message: 'Missing query' });
+  }
+
+  let llmFormatted = await getNotionQueryResponseGemini(query);
+  if (!llmFormatted) {
+    return res.status(500).json({ message: 'Failed to get LLM response' });
+  }
+  console.log("LLM formatted response:", llmFormatted);
+  return res.json({ message: 'LLM response retrieved successfully', llmFormatted });
+})
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
