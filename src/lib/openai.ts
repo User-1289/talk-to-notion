@@ -17,37 +17,6 @@ const notionQueryResSchema = z.object({
     reasoningForContent:z.string(),
 })
 
-export async function getNotionQueryResponse(query: string) {
-    try {
-        let llmRes = await openai.chat.completions.create({
-            model:'gpt-4.1-nano',
-            messages:[
-                {
-                    role:'system',
-                    "content":"You are given a natural language text and you need to extract some data that I need from it"
-                }
-                ,
-                {
-                    role:'user',
-                    content:query
-                },
-                {
-                    role:'user',
-                    content:"Please extract the intent of the query, possible target names, content, whether the content is enough, and reasoning for the content. The response should be in JSON format."
-                }
-            ],
-            response_format: zodResponseFormat(notionQueryResSchema, "notionQueryResSchema"),
-        })
-        console.log("LLM response:", llmRes);
-        const response = notionQueryResSchema.parse(llmRes);
-        console.log("Parsed response:", response);
-        return response;
-    } catch (error) {
-        console.error("Error in getNotionQueryResponse:", error);
-        throw error;
-    }
-}
-
 export async function getNotionQueryResponseGemini(query: string) {
     try {
         const prompt = `You are given a natural language query related to Notion actions. Extract the required fields. Query: "${query}" 
@@ -58,6 +27,8 @@ export async function getNotionQueryResponseGemini(query: string) {
         - If the query is asking to create data, check if the query has enough information to create the data, like the data itself, where to create it, etc.
         - If the query is asking to update data, check if the query has enough information to update the data, like the name of the page, the type of data, etc.
         - If the query is asking to delete data, check if the query has enough information to delete the data, like the name of the page, the type of data, etc.
+
+        The content should be properly formatted, becuase im going to use notion search api with the content, WARNING: the content field should be picked with your intelligence, and you should not return the whole query as content, it should be a proper content that can be used to search in notion.
         `;
 
         const result = await ai.models.generateContent({
@@ -97,6 +68,37 @@ export async function getNotionQueryResponseGemini(query: string) {
         return JSON.parse(responseText)
     } catch (error) {
         console.error("Error in getNotionQueryResponseGemini:", error);
+        throw error;
+    }
+}
+
+export async function getNotionQueryResponse(query: string) {
+    try {
+        let llmRes = await openai.chat.completions.create({
+            model:'gpt-4.1-nano',
+            messages:[
+                {
+                    role:'system',
+                    "content":"You are given a natural language text and you need to extract some data that I need from it"
+                }
+                ,
+                {
+                    role:'user',
+                    content:query
+                },
+                {
+                    role:'user',
+                    content:"Please extract the intent of the query, possible target names, content, whether the content is enough, and reasoning for the content. The response should be in JSON format."
+                }
+            ],
+            response_format: zodResponseFormat(notionQueryResSchema, "notionQueryResSchema"),
+        })
+        console.log("LLM response:", llmRes);
+        const response = notionQueryResSchema.parse(llmRes);
+        console.log("Parsed response:", response);
+        return response;
+    } catch (error) {
+        console.error("Error in getNotionQueryResponse:", error);
         throw error;
     }
 }

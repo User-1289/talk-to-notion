@@ -6,6 +6,7 @@ app.use(cookieParser());
 import { Client as nc } from "@notionhq/client";
 import { getNotionQueryResponse, getNotionQueryResponseGemini } from './lib/openai';
 import dotenv from 'dotenv';
+import {retireveQuery} from './lib/notionActions';
 dotenv.config();
 const NOTION_ACCESS_TOKEN = process.env.NOTION_ACCESS_TOKEN
 const AUTH_CLIENT_ID = process.env.AUTH_CLIENT_ID
@@ -143,7 +144,29 @@ app.get('/notion/:query', async (req: any, res: any) => {
     return res.status(500).json({ message: 'Failed to get LLM response' });
   }
   console.log("LLM formatted response:", llmFormatted);
-  return res.json({ message: 'LLM response retrieved successfully', llmFormatted });
+  //return res.json({ message: 'LLM response retrieved successfully', llmFormatted });
+
+  try {
+    let notionQueryRes = await retireveQuery(llmFormatted);
+    if (!notionQueryRes) {
+      return res.status(500).json({ message: 'Failed to get Notion query response' });
+    }
+    console.log("Notion query response:", notionQueryRes);
+    return res.json({ message: 'Notion query response retrieved successfully', notionQueryRes });
+  } catch (error:any) {
+    console.error("Error in Notion query:", error);
+    return res.status(500).json({ message: 'Failed to get Notion query response', error: error.message });
+  }
+})
+
+app.get('/notion/execute', async (req: any, res: any) => {
+  //get formatted response from the post body
+  const { formattedResponse } = req.body;
+  if (!formattedResponse) {
+    return res.status(400).json({ message: 'Missing formatted response' });
+  }
+
+  
 })
 
 app.listen(PORT, () => {
